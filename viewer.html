@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>ODS Viewer</title>
+    <title>LLMcliché results viewer</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
         body {
@@ -18,6 +18,61 @@
         #spreadsheet {
             margin-top: 20px;
             overflow-x: auto;
+        }
+        
+        /* Navigation index styling */
+        #navigation {
+            margin: 20px 0;
+            padding: 20px;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .nav-category {
+            margin-bottom: 20px;
+        }
+        
+        .nav-category h3 {
+            color: #4a90e2;
+            margin-bottom: 10px;
+            font-size: 18px;
+            border-bottom: 2px solid #4a90e2;
+            padding-bottom: 5px;
+        }
+        
+        .nav-item {
+            margin: 8px 0;
+            padding: 8px 12px;
+            background-color: #f8f9fa;
+            border-radius: 5px;
+            border-left: 4px solid #4a90e2;
+            transition: all 0.2s ease;
+        }
+        
+        .nav-item:hover {
+            background-color: #e3f2fd;
+            transform: translateX(5px);
+        }
+        
+        .nav-item a {
+            text-decoration: none;
+            color: #333;
+            font-weight: 500;
+            display: block;
+        }
+        
+        .nav-item a:hover {
+            color: #4a90e2;
+        }
+        
+        .nav-item.active {
+            background-color: #e3f2fd;
+            border-left-color: #2196f3;
+        }
+        
+        .nav-item.active a {
+            color: #2196f3;
         }
         
         /* Table styling with alternating row colors */
@@ -98,7 +153,28 @@
     </style>
 </head>
 <body>
-    <h1>ODS File Viewer</h1>
+    <h1>LLMcliché results viewer</h1>
+    
+    <div id="navigation">
+        
+        <div class="nav-category">
+            <h3>Tech CEOs trustworthiness</h3>
+            <div class="nav-item">
+                <a href="?file=Tech%20CEOs%20trustworthiness/results.elo.ranking.ods&sheet=0">Elo rating</a>
+            </div>
+            <div class="nav-item">
+                <a href="?file=Tech%20CEOs%20trustworthiness/results.elo.ranking.ods&sheet=1">Ranking</a>
+            </div>
+        </div>
+        
+        <div class="nav-category">
+            <h3>90 hobbies vs 37 personality traits</h3>
+            <div class="nav-item">
+                <a href="?file=90%20hobbies%20vs%2037%20personality%20traits/metrics%20comparision.elo%20only.ods&sheet=0">Elo rating</a>
+            </div>
+        </div>
+    </div>
+    
     <div id="spreadsheet"></div>
 
     <script>
@@ -143,6 +219,30 @@
         // Function to display blank page
         function displayBlankPage() {
             document.body.innerHTML = '';
+        }
+        
+        // Function to highlight the current navigation item
+        function highlightCurrentNavigation() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const currentFile = urlParams.get('file');
+            const currentSheet = urlParams.get('sheet') || '0';
+            
+            // Remove all active states
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            
+            // Find and highlight the current item
+            if (currentFile) {
+                const navItems = document.querySelectorAll('.nav-item a');
+                navItems.forEach(link => {
+                    const href = link.getAttribute('href');
+                    if (href.includes(`file=${encodeURIComponent(currentFile)}`) && 
+                        href.includes(`sheet=${currentSheet}`)) {
+                        link.closest('.nav-item').classList.add('active');
+                    }
+                });
+            }
         }
         
         async function loadODS() {
@@ -198,6 +298,9 @@
                 
                 // Apply additional styling to the generated table
                 applyTableStyling();
+                
+                // Highlight the current navigation item after the spreadsheet is loaded
+                highlightCurrentNavigation();
                 
             } catch (error) {
                 console.error('Error loading ODS:', error);
