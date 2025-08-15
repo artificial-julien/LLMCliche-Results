@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>ODS Viewer</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        
+        #spreadsheet {
+            margin-top: 20px;
+            overflow-x: auto;
+        }
+        
+        /* Table styling with alternating row colors */
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            background-color: white;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        
+        /* Header row styling */
+        thead tr {
+            background-color: #4a90e2;
+            color: white;
+        }
+        
+        thead th {
+            padding: 12px 8px;
+            text-align: left;
+            font-weight: bold;
+            border-bottom: 2px solid #357abd;
+        }
+        
+        /* Alternating row colors */
+        tbody tr:nth-child(even) {
+            background-color: #f8f9fa;
+        }
+        
+        tbody tr:nth-child(odd) {
+            background-color: #ffffff;
+        }
+        
+        /* Hover effect for rows */
+        tbody tr:hover {
+            background-color: #e3f2fd;
+            transition: background-color 0.2s ease;
+        }
+        
+        /* Cell styling */
+        td {
+            padding: 10px 8px;
+            border-bottom: 1px solid #e0e0e0;
+            text-align: left;
+        }
+        
+        /* Alternating cell colors within rows (subtle variation) */
+        tbody tr:nth-child(even) td:nth-child(odd) {
+            background-color: #f0f2f5;
+        }
+        
+        tbody tr:nth-child(odd) td:nth-child(even) {
+            background-color: #fafbfc;
+        }
+        
+        /* First column styling */
+        td:first-child {
+            font-weight: bold;
+            background-color: #f8f9fa;
+        }
+        
+        /* Last row styling */
+        tbody tr:last-child td {
+            border-bottom: none;
+        }
+        
+        /* Responsive design */
+        @media (max-width: 768px) {
+            table {
+                font-size: 14px;
+            }
+            
+            td, th {
+                padding: 8px 6px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1>ODS File Viewer</h1>
+    <div id="spreadsheet"></div>
+
+    <script>
+        // Function to safely parse URL query parameters
+        function getQueryParam(param) {
+            const urlParams = new URLSearchParams(window.location.search);
+            return urlParams.get(param);
+        }
+        
+        // Function to validate file path for security
+        function validateFilePath(filePath) {
+            if (!filePath) return false;
+            
+            // Prevent directory traversal attacks
+            if (filePath.includes('..') || filePath.includes('\\') || filePath.startsWith('/')) {
+                return false;
+            }
+            
+            // Only allow relative paths within current domain
+            if (filePath.startsWith('http://') || filePath.startsWith('https://') || filePath.startsWith('//')) {
+                return false;
+            }
+            
+            // Only allow ODS files
+            if (!filePath.toLowerCase().endsWith('.ods')) {
+                return false;
+            }
+            
+            return true;
+        }
+        
+        // Function to check if a file exists
+        async function fileExists(filePath) {
+            try {
+                const response = await fetch(filePath, { method: 'HEAD' });
+                return response.ok;
+            } catch {
+                return false;
+            }
+        }
+        
+        // Function to display blank page
+        function displayBlankPage() {
+            document.body.innerHTML = '';
+        }
+        
+        async function loadODS() {
+            try {
+                // Get file and sheet from URL parameters
+                const filePath = getQueryParam('file');
+                const sheetIndex = parseInt(getQueryParam('sheet') || '0');
+                
+                // If no file parameter provided, display blank page
+                if (!filePath) {
+                    displayBlankPage();
+                    return;
+                }
+                
+                // Validate file path
+                if (!validateFilePath(filePath)) {
+                    displayBlankPage();
+                    return;
+                }
+                
+                // Check if file exists
+                if (!(await fileExists(filePath))) {
+                    displayBlankPage();
+                    return;
+                }
+                
+                const response = await fetch(filePath);
+                
+                if (!response.ok) {
+                    displayBlankPage();
+                    return;
+                }
+                
+                const arrayBuffer = await response.arrayBuffer();
+                
+                const workbook = XLSX.read(arrayBuffer, {type: 'array'});
+                
+                // Validate sheet index
+                if (sheetIndex < 0 || sheetIndex >= workbook.SheetNames.length) {
+                    displayBlankPage();
+                    return;
+                }
+                
+                const selectedSheet = workbook.Sheets[workbook.SheetNames[sheetIndex]];
+                
+                // Show available sheets in console for debugging
+                console.log('Available sheets:', workbook.SheetNames);
+                console.log('Selected sheet:', workbook.SheetNames[sheetIndex]);
+                
+                const htmlTable = XLSX.utils.sheet_to_html(selectedSheet);
+                
+                document.getElementById('spreadsheet').innerHTML = htmlTable;
+                
+                // Apply additional styling to the generated table
+                applyTableStyling();
+                
+            } catch (error) {
+                console.error('Error loading ODS:', error);
+                displayBlankPage();
+            }
+        }
+        
+        function applyTableStyling() {
+            const table = document.querySelector('table');
+            if (table) {
+                // Add classes for better styling control
+                table.classList.add('styled-table');
+                
+                // Ensure proper table structure
+                if (!table.querySelector('thead')) {
+                    const firstRow = table.querySelector('tr');
+                    if (firstRow) {
+                        const thead = document.createElement('thead');
+                        const headerRow = document.createElement('tr');
+                        
+                        // Convert first row to header
+                        Array.from(firstRow.children).forEach(cell => {
+                            const th = document.createElement('th');
+                            th.textContent = cell.textContent;
+                            headerRow.appendChild(th);
+                        });
+                        
+                        thead.appendChild(headerRow);
+                        table.insertBefore(thead, table.firstChild);
+                        firstRow.remove();
+                    }
+                }
+                
+                // Add zebra striping to tbody rows
+                const tbody = table.querySelector('tbody') || table;
+                const rows = tbody.querySelectorAll('tr');
+                
+                rows.forEach((row, index) => {
+                    row.classList.add(index % 2 === 0 ? 'even-row' : 'odd-row');
+                });
+            }
+        }
+
+        // Start loading when page is ready
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', loadODS);
+        } else {
+            loadODS();
+        }
+    </script>
+</body>
+</html>
